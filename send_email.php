@@ -1,21 +1,16 @@
 <?php
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+
+use Slim\Factory\AppFactory;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 // Include PHPMailer autoloader
-require '/home/sam/sandbox/email_sender/PHPMailer/src/PHPMailer.php';
-require '/home/sam/sandbox/email_sender/PHPMailer/src/Exception.php';
-require '/home/sam/sandbox/email_sender/PHPMailer/src/SMTP.php';
+require __DIR__ . '/vendor/autoload.php';
 
-// Check if form is submitted
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Get form data
-    $recipient = $_POST['recipient'];
-    $subject = $_POST['subject'];
-    $message = $_POST['message'];
-
+// Old function to send email using PHPMailer
+function sendEmail($recipient, $subject, $message) {
     // Instantiate PHPMailer
-    $mail = new PHPMailer(true);
+    $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
     try {
         // SMTP configuration
@@ -35,9 +30,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Send email
         $mail->send();
-        echo 'Email has been sent successfully!';
+        return true; // Email sent successfully
     } catch (Exception $e) {
-        echo "Email could not be sent. Mailer Error: {$mail->ErrorInfo}";
+        return false; // Failed to send email
     }
 }
+
+// Create Slim app
+$app = AppFactory::create();
+
+// Old function route
+$app->get('/old-send-email', function (Request $request, Response $response) {
+    $recipient = 'recipient@example.com'; // Replace with recipient email
+    $subject = 'Test Subject';
+    $message = 'Test message from old function';
+
+    // Call old function to send email
+    $result = sendEmail($recipient, $subject, $message);
+
+    if ($result) {
+        $response->getBody()->write('Email sent successfully using old function');
+    } else {
+        $response->getBody()->write('Failed to send email using old function');
+    }
+
+    return $response;
+});
+
+// New endpoint to send email using Slim
+$app->post('/send-email', function (Request $request, Response $response) {
+    $data = $request->getParsedBody();
+    $recipient = $data['recipient'];
+    $subject = $data['subject'];
+    $message = $data['message'];
+
+    // Call old function to send email
+    $result = sendEmail($recipient, $subject, $message);
+
+    if ($result) {
+        return $response->withJson(['message' => 'Email sent successfully']);
+    } else {
+        return $response->withStatus(500)->withJson(['error' => 'Failed to send email']);
+    }
+});
+
+// Run Slim app
+$app->run();
+
 ?>
